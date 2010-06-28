@@ -4,20 +4,24 @@
 from ConfigParser import SafeConfigParser
 from optparse import OptionParser, OptionValueError
 from subprocess import Popen, PIPE
+from decoradores import Verbose
+from debug import debug
 import feedparser
 import os
 import re
 
 LOGFILE = os.path.expanduser("~/.processfeed.log")
 CONFIGFILE = os.path.expanduser('~/.processfeed')
+VERBOSE = 2
 
-
+@Verbose(VERBOSE)
 def write(text, destination):
     f = open(destination, "a")
-    f.write("%s\n" % text)
+    f.write("%s\n" % text.encode("UTF-8", "replace"))
     f.close()
 
 
+@Verbose(VERBOSE)
 def read(filename):
     try:
         lines = [line.split("#")[0].strip()
@@ -27,13 +31,15 @@ def read(filename):
     return lines
 
 
+@Verbose(VERBOSE)
 def execute(command, stdin):
     proc = Popen(command, shell=True, stdin=PIPE)
-    proc.stdin.write(stdin)
+    proc.stdin.write(stdin.encode("UTF-8", "replace"))
     proc.stdin.close()
     return proc.returncode
 
 
+@Verbose(VERBOSE)
 def main():
     # Define the defaults value
     config = SafeConfigParser()
@@ -43,32 +49,51 @@ def main():
 
     history = read(LOGFILE)
 
-    print "Checkpoint"
+    sections = config.sections()
+    debug("Sections: %s" % sections)
 
-    for section in config.sections():
-        print section
+    for section in sections:
+        debug("  Processing %s" % section)
+
         items = dict(config.items(section, True))
+        for key, value in items.iteritems():
+            items[key] = unicode(value)
+
         enabled = items["enabled"]
 
         if enabled == "False":
-            print "Continue"
+            debug("    Enabled == False")
             continue
 
         feed = feedparser.parse(items["feed"])
-        
+
+        if "bozo_exception" in feed:
+            debug("    %s" % feed["bozo_exception"])
+            continue
+        else:
+            debug("    Readed %d entries" % len(feed["entries"]))
+
         for entry in feed["entries"][::-1]:
+            for key, value in entry.iteritems():
+                entry[key] = unicode(value)
+
             if entry["id"] in history:
-                print "In history"
+                debug("    %s in history" % entry["id"])
                 continue
+            else:
+                debug("    %s:" % entry["id"])
 
             safe_globals = {"re": re, "feed": feed, "entry": entry}
-            if eval(items["enabled"], safe_globals):
+            enabled = eval(items["enabled"], safe_globals)
+
+            if enabled:
+                debug("        Enabled: %s" % enabled)
                 write("%s #%s" % (entry["id"], entry["title"]), LOGFILE)
                 stdin = eval(items["stdin"], safe_globals)
                 command = items["command"]
                 return execute(command, stdin)
             else:
-                print eval(items["enabled"], safe_globals)
+                debug("        Not enabled: %s" % enabled)
                 write("%s #%s (OMITED)" % (entry["id"],
                     entry["title"]), LOGFILE)
 

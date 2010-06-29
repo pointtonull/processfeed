@@ -68,15 +68,12 @@ def main():
         feed = feedparser.parse(items["feed"])
 
         if "bozo_exception" in feed:
-            debug("    %s" % feed["bozo_exception"])
+            debug("    %s %s" % (items["feed"], feed["bozo_exception"]))
             continue
         else:
             debug("    Readed %d entries" % len(feed["entries"]))
 
         for entry in feed["entries"][::-1]:
-            for key, value in entry.iteritems():
-                entry[key] = unicode(value)
-
             if entry["id"] in history:
                 debug("    %s in history" % entry["id"])
                 continue
@@ -84,14 +81,21 @@ def main():
                 debug("    %s:" % entry["id"])
 
             safe_globals = {"re": re, "feed": feed, "entry": entry}
+            debug("        %s" % safe_globals.keys())
+            debug("        %s" % type(entry["content"]))
+            debug("        %s" % entry["content"])
             enabled = eval(items["enabled"], safe_globals)
 
             if enabled:
                 debug("        Enabled: %s" % enabled)
-                write("%s #%s" % (entry["id"], entry["title"]), LOGFILE)
+                debug("        Stdin code: %s" % items["stdin"])
                 stdin = eval(items["stdin"], safe_globals)
+                debug("        Stdin text: %s" % stdin)
                 command = items["command"]
-                return execute(command, stdin)
+                error = execute(command, stdin)
+                write("%s #%s" % (entry["id"], entry["title"]), LOGFILE)
+                return error
+
             else:
                 debug("        Not enabled: %s" % enabled)
                 write("%s #%s (OMITED)" % (entry["id"],

@@ -41,10 +41,10 @@ def execute(command, stdin):
 
 @Verbose(VERBOSE)
 def main():
-    # Define the defaults value
+    # Define the defaults values
     config = SafeConfigParser()
 
-    # Read the values on the file
+    # Read the values from the file
     config.read(CONFIGFILE)
 
     history = read(LOGFILE)
@@ -81,16 +81,13 @@ def main():
                 debug("    %s:" % entry["id"])
 
             safe_globals = {"re": re, "feed": feed, "entry": entry}
-            debug("        %s" % safe_globals.keys())
-            debug("        %s" % type(entry["content"]))
-            debug("        %s" % entry["content"])
             enabled = eval(items["enabled"], safe_globals)
 
             if enabled:
                 debug("        Enabled: %s" % enabled)
                 debug("        Stdin code: %s" % items["stdin"])
                 stdin = eval(items["stdin"], safe_globals)
-                debug("        Stdin text: %s" % stdin)
+                debug("        Stdin text: %s" % stdin.encode("UTF-8"))
                 command = items["command"]
                 error = execute(command, stdin)
                 write("%s #%s" % (entry["id"], entry["title"]), LOGFILE)

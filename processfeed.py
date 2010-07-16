@@ -6,6 +6,7 @@ from optparse import OptionParser, OptionValueError
 from subprocess import Popen, PIPE
 from decoradores import Verbose
 from debug import debug
+from collections import defaultdict
 import feedparser
 import os
 import re
@@ -32,12 +33,29 @@ def read(filename):
 
 
 @Verbose(VERBOSE)
-def execute(command, stdin):
-    proc = Popen(command, shell=True, stdin=PIPE)
-    proc.stdin.write(stdin.encode("UTF-8", "replace"))
-    proc.stdin.close()
-    return proc.returncode
+def get_id(section, entry):
+    for key in ("id", "link"):
+        if key in entry:
+            idstring = entry[key]
+            break
 
+    else:
+        debug("    E: Entry cannot be identified, please report this bug."
+            "Dump:\n%s" % entry.keys())
+
+    return "%s::%s" % (section, idstring)
+
+
+@Verbose(VERBOSE)
+def execute(command, stdin=""):
+    if stdin:
+        proc = Popen(command, shell=True, stdin=PIPE)
+        proc.stdin.write(stdin.encode("UTF-8", "replace"))
+        proc.stdin.close()
+    else:
+        proc = Popen(command, shell=True)
+        proc.wait()
+    return proc.returncode
 
 @Verbose(VERBOSE)
 def main():
@@ -55,8 +73,8 @@ def main():
     for section in sections:
         debug("  Processing %s" % section)
 
-        items = dict(config.items(section, True))
-        for key, value in items.iteritems():
+        items = defaultdict(lambda: u"None")
+        for key, value in config.items(section, True):
             items[key] = unicode(value)
 
         enabled = items["enabled"]
@@ -74,29 +92,35 @@ def main():
             debug("    Readed %d entries" % len(feed["entries"]))
 
         for entry in feed["entries"][::-1]:
-            if entry["id"] in history:
-                debug("    %s in history" % entry["id"])
-                continue
+            process = False
+            idstring = get_id(section, entry)
+
+            if idstring in history:
+                debug("    %s in history" % idstring)
             else:
-                debug("    %s:" % entry["id"])
+                debug("    %s:" % idstring)
+                safe_globals = {"re": re, "feed": feed, "entry": entry}
+                enabled = eval(items["enabled"], safe_globals)
 
-            safe_globals = {"re": re, "feed": feed, "entry": entry}
-            enabled = eval(items["enabled"], safe_globals)
+                if enabled:
+                    debug("        Enabled: %s" % enabled)
 
-            if enabled:
-                debug("        Enabled: %s" % enabled)
-                debug("        Stdin code: %s" % items["stdin"])
-                stdin = eval(items["stdin"], safe_globals)
-                debug("        Stdin text: %s" % stdin.encode("UTF-8"))
-                command = items["command"]
-                error = execute(command, stdin)
-                write("%s #%s" % (entry["id"], entry["title"]), LOGFILE)
-                return error
+                    debug("        Command code: %s" % items["command"])
+                    command = unicode(eval(items["command"], safe_globals))
+                    debug("        Command text: %s" % command.encode("UTF-8"))
 
-            else:
-                debug("        Not enabled: %s" % enabled)
-                write("%s #%s (OMITED)" % (entry["id"],
-                    entry["title"]), LOGFILE)
+                    debug("        Stdin code: %s" % items["stdin"])
+                    stdin = unicode(eval(items["stdin"], safe_globals))
+                    debug("        Stdin text: %s" % stdin.encode("UTF-8"))
+
+                    error = execute(command, stdin)
+                    write("%s #%s" % (idstring, entry["title"]), LOGFILE)
+                    return error
+
+                else:
+                    debug("        Not enabled: %s" % enabled)
+                    write("%s #%s (OMITED)" % (entry["id"],
+                        entry["title"]), LOGFILE)
 
 
 if __name__ == "__main__":

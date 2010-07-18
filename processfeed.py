@@ -118,7 +118,7 @@ def main():
 
         items = defaultdict(lambda: u"None")
         for key, value in config.items(section, True):
-            items[key] = unicode(value)
+            items[key] = value.decode("utf-8")
 
         enabled = items["enabled"]
 

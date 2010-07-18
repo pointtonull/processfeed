@@ -86,17 +86,16 @@ def main():
 
     # Instance the parser and define the usage message
     parser = OptionParser(usage="""
-    %prog [-vqd]
-    %prog [-vqd] file
-    %prog [-vqdc] command""", version="%prog 2")
+    %prog [-vqd]""", version="%prog .2")
 
     # Define the options and the actions of each one
-    parser.add_option("-c", help="Read the comands from" +
-        " the arg instead of from the standard input", action="store_true",
-        dest="command")
-    parser.add_option("-v", "--verbose", action="count", dest="verbose")
-    parser.add_option("-q", "--quiet", action="count", dest="quiet")
-    parser.add_option("-d", "--define", metavar="VAR=VALUE", action="callback",
+    parser.add_option("-s", "--section", help="Process only the given section",
+        action="store", dest="section")
+    parser.add_option("-v", "--verbose", action="count", dest="verbose",
+        help="Increment verbosity")
+    parser.add_option("-q", "--quiet", action="count", dest="quiet",
+        help="Decrement verbosity")
+    parser.add_option("-d", metavar="VAR=VALUE", action="callback",
         callback=define_variable, type="string", nargs=1, dest="variables",
         help="Define a variable VAR to VALUE")
 

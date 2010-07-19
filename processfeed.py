@@ -14,14 +14,48 @@ LOGFILE = os.path.expanduser("~/.processfeed.log")
 CONFIGFILE = os.path.expanduser('~/.processfeed')
 
 class Verbose:
-    def __init__(self, verbosity, prefix=""):
+    def __init__(self, verbosity, prefix="", ident=True):
         self.verbosity = False if verbosity < 0 else True
         self.prefix = prefix
+        self.ident = ident
 
     def __call__(self, *args):
         if self.verbosity:
             message = " ".join((str(e) for e in args))
-            sys.stderr.write("%s%s\n" % (self.prefix, message))
+            sys.stderr.write("%s%s%s\n" % ("  " * self.get_depth(), self.prefix,
+                message))
+
+    def get_depth(self):
+        if not self.ident:
+            return 0
+        else:
+            def exist_frame(n):
+                try:
+                    if sys._getframe(n):
+                        return True
+                except ValueError:
+                    return False
+
+            now = 0
+            maxn = 1
+            minn = 0
+
+            while exist_frame(maxn):
+                minn = maxn
+                maxn *= 2
+
+            # minn =< depth < maxn
+            middle = (minn + maxn) / 2
+          
+            while minn < middle:
+                if exist_frame(middle):
+                    minn = middle
+                else:
+                    maxn = middle
+
+                middle = (minn + maxn) / 2
+          
+            return max(minn - 3, 0) #4 == len(main, Verbose, get_depth)
 
 
 def write(text, destination):
@@ -67,81 +101,64 @@ def run(command, stdin=""):
         debug("""Starting "%s" with stdin pipe""" % command)
         proc = Popen(command, shell=True)
         proc.wait()
+
+    if proc.returncode:
+        warning("""Process '%s' exited with error %d""" % (command,
+            proc.returncode))
     return proc.returncode
 
 
-def process():
-    """Read the feed and execute the defined rules
-    """
-    # Define the defaults value
-    config = SafeConfigParser()
+def process_section(section):
+    items = defaultdict(lambda: u"None")
+    for key, value in config.items(section, True):
+        items[key] = value.decode("utf-8")
 
-    # Read the values from the file
-    config.read(CONFIGFILE)
+    enabled = items["enabled"]
 
-    # == Execution ==
+    if enabled == "False":
+        debug("Enabled == False")
+        return
 
-    history = read(LOGFILE)
+    feed = feedparser.parse(items["feed"])
 
-    sections = config.sections()
-    debug("Sections: %s" % sections)
+    if "bozo_exception" in feed:
+        error("%s %s" % (items["feed"], feed["bozo_exception"]))
+        return
+    else:
+        info("Readed %d entries" % len(feed["entries"]))
 
-    for section in sections:
-        info("  Processing %s" % section)
+    for entry in feed["entries"][::-1]:
+        process = False
+        idstring = get_id(section, entry)
 
-        items = defaultdict(lambda: u"None")
-        for key, value in config.items(section, True):
-            items[key] = value.decode("utf-8")
-
-        enabled = items["enabled"]
-
-        if enabled == "False":
-            debug("    Enabled == False")
-            continue
-
-        feed = feedparser.parse(items["feed"])
-
-        if "bozo_exception" in feed:
-            error("    %s %s" % (items["feed"], feed["bozo_exception"]))
-            continue
+        if idstring in history:
+            debug("%s in history" % idstring)
         else:
-            info("    Readed %d entries" % len(feed["entries"]))
+            info("%s:" % idstring)
+            safe_globals = {"re": re, "feed": feed, "entry": entry}
+            enabled = eval(items["enabled"], safe_globals)
 
-        for entry in feed["entries"][::-1]:
-            process = False
-            idstring = get_id(section, entry)
+            if enabled:
+                info("Enabled: %s" % enabled)
 
-            if idstring in history:
-                debug("    %s in history" % idstring)
+                info("Command code: %s" % items["command"])
+                command = unicode(eval(items["command"], safe_globals))
+                info("Command text: %s" % command.encode("UTF-8"))
+
+                info("Stdin code: %s" % items["stdin"])
+                stdin = unicode(eval(items["stdin"], safe_globals))
+                info("Stdin text: %s" % stdin.encode("UTF-8"))
+
+                exitcode = run(command, stdin)
+                write("%s #%s" % (idstring, entry["title"]), LOGFILE)
+                return exitcode
+
             else:
-                info("    %s:" % idstring)
-                safe_globals = {"re": re, "feed": feed, "entry": entry}
-                enabled = eval(items["enabled"], safe_globals)
+                info("Not enabled: %s" % enabled)
+                write("%s #%s (OMITED)" % (idstring, entry["title"]),
+                    LOGFILE)
 
-                if enabled:
-                    info("        Enabled: %s" % enabled)
-
-                    info("        Command code: %s" % items["command"])
-                    command = unicode(eval(items["command"], safe_globals))
-                    info("        Command text: %s" % command.encode("UTF-8"))
-
-                    info("        Stdin code: %s" % items["stdin"])
-                    stdin = unicode(eval(items["stdin"], safe_globals))
-                    info("        Stdin text: %s" % stdin.encode("UTF-8"))
-
-                    exitcode = run(command, stdin)
-                    write("%s #%s" % (idstring, entry["title"]), LOGFILE)
-                    return exitcode
-
-                else:
-                    info("        Not enabled: %s" % enabled)
-                    write("%s #%s (OMITED)" % (idstring, entry["title"]),
-                        LOGFILE)
-
-
-if __name__ == "__main__":
-    # == Reading the options of the execution ==
-
+def get_options():
     def define_variable(option, opt_str, value, parser):
         """Handle the -d/--define option and populate the variables dict"""
         logging.debug(option.dest)
@@ -180,7 +197,27 @@ if __name__ == "__main__":
         conffile=CONFIGFILE)
 
     # Process the options
-    options, args = optparser.parse_args()
+    return optparser.parse_args()
+    
+
+
+def process():
+    """Read the feed and execute the defined rules
+    """
+
+    sections = config.sections()
+    debug("Sections: %s" % sections)
+
+    for section in sections:
+        info("Processing %s" % section)
+        process_section(section)
+
+
+
+if __name__ == "__main__":
+    # == Reading the options of the execution ==
+    options, args = get_options()
+
 
     error = Verbose(options.verbose - options.quiet + 1, "E: ")
     info = Verbose(options.verbose - options.quiet - 0)
@@ -188,5 +225,15 @@ if __name__ == "__main__":
     debug = Verbose(options.verbose - options.quiet - 2, "D: ")
 
     debug("""Options: '%s', args: '%s'""" % (options, args))
+
+
+    # Define the defaults value
+    config = SafeConfigParser()
+
+    # Read the values from the file
+    config.read(CONFIGFILE)
+
+    # Read the history log
+    history = read(LOGFILE)
 
     exit(process())

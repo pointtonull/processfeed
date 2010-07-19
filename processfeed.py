@@ -8,24 +8,24 @@ from collections import defaultdict
 import feedparser
 import os
 import re
-import time
 import sys
 
-STARTTIME = time.time()
 LOGFILE = os.path.expanduser("~/.processfeed.log")
 CONFIGFILE = os.path.expanduser('~/.processfeed')
 
 class Verbose:
-    def __init__(self, verbosity):
+    def __init__(self, verbosity, prefix=""):
         self.verbosity = False if verbosity < 0 else True
+        self.prefix = prefix
 
     def __call__(self, *args):
         if self.verbosity:
             message = " ".join((str(e) for e in args))
-            sys.stderr.write("%7.2f %s\n" % (time.time() - STARTTIME, message))
+            sys.stderr.write("%s%s\n" % (self.prefix, message))
 
 
 def write(text, destination):
+    debug("""Writing "%s" to %s""" % (text, destination))
     f = open(destination, "a")
     f.write("%s\n" % text.encode("UTF-8", "replace"))
     f.close()
@@ -36,6 +36,7 @@ def read(filename):
         lines = [line.split("#")[0].strip()
             for line in open(filename).readlines()]
     except IOError:
+        warning("%s does not exist" % filename)
         lines = []
     return lines
 
@@ -47,32 +48,36 @@ def get_id(section, entry):
             break
 
     else:
-        debug("    E: Entry cannot be identified, please report this bug."
+        error("Entry cannot be identified, please report this bug."
             "Dump:\n%s" % entry.keys())
 
     return "%s::%s" % (section, idstring)
 
 
-def execute(command, stdin=""):
+def run(command, stdin=""):
+    """Execute the given command and pases stdin (if any) to the proc.
+    """
     if stdin:
+        debug("""Starting "%s" with stdin pipe""" % command)
         proc = Popen(command, shell=True, stdin=PIPE)
         proc.stdin.write(stdin.encode("UTF-8", "replace"))
         proc.stdin.close()
         proc.wait()
     else:
+        debug("""Starting "%s" with stdin pipe""" % command)
         proc = Popen(command, shell=True)
         proc.wait()
     return proc.returncode
 
 
 def process():
+    """Read the feed and execute the defined rules
+    """
     # Define the defaults value
     config = SafeConfigParser()
 
     # Read the values from the file
     config.read(CONFIGFILE)
-
-
 
     # == Execution ==
 
@@ -82,7 +87,7 @@ def process():
     debug("Sections: %s" % sections)
 
     for section in sections:
-        debug("  Processing %s" % section)
+        info("  Processing %s" % section)
 
         items = defaultdict(lambda: u"None")
         for key, value in config.items(section, True):
@@ -97,10 +102,10 @@ def process():
         feed = feedparser.parse(items["feed"])
 
         if "bozo_exception" in feed:
-            debug("    %s %s" % (items["feed"], feed["bozo_exception"]))
+            error("    %s %s" % (items["feed"], feed["bozo_exception"]))
             continue
         else:
-            debug("    Readed %d entries" % len(feed["entries"]))
+            info("    Readed %d entries" % len(feed["entries"]))
 
         for entry in feed["entries"][::-1]:
             process = False
@@ -109,27 +114,27 @@ def process():
             if idstring in history:
                 debug("    %s in history" % idstring)
             else:
-                debug("    %s:" % idstring)
+                info("    %s:" % idstring)
                 safe_globals = {"re": re, "feed": feed, "entry": entry}
                 enabled = eval(items["enabled"], safe_globals)
 
                 if enabled:
-                    debug("        Enabled: %s" % enabled)
+                    info("        Enabled: %s" % enabled)
 
-                    debug("        Command code: %s" % items["command"])
+                    info("        Command code: %s" % items["command"])
                     command = unicode(eval(items["command"], safe_globals))
-                    debug("        Command text: %s" % command.encode("UTF-8"))
+                    info("        Command text: %s" % command.encode("UTF-8"))
 
-                    debug("        Stdin code: %s" % items["stdin"])
+                    info("        Stdin code: %s" % items["stdin"])
                     stdin = unicode(eval(items["stdin"], safe_globals))
-                    debug("        Stdin text: %s" % stdin.encode("UTF-8"))
+                    info("        Stdin text: %s" % stdin.encode("UTF-8"))
 
-                    error = execute(command, stdin)
+                    exitcode = run(command, stdin)
                     write("%s #%s" % (idstring, entry["title"]), LOGFILE)
-                    return error
+                    return exitcode
 
                 else:
-                    debug("        Not enabled: %s" % enabled)
+                    info("        Not enabled: %s" % enabled)
                     write("%s #%s (OMITED)" % (idstring, entry["title"]),
                         LOGFILE)
 
@@ -177,11 +182,11 @@ if __name__ == "__main__":
     # Process the options
     options, args = optparser.parse_args()
 
-    debug = Verbose(options.verbose - options.quiet - 2)
-    info = Verbose(options.verbose - options.quiet - 1)
-    warning = Verbose(options.verbose - options.quiet - 0)
-    error = Verbose(options.verbose - options.quiet + 1)
+    error = Verbose(options.verbose - options.quiet + 1, "E: ")
+    info = Verbose(options.verbose - options.quiet - 0)
+    warning = Verbose(options.verbose - options.quiet - 1, "W: ")
+    debug = Verbose(options.verbose - options.quiet - 2, "D: ")
 
-    debug(options, args)
+    debug("""Options: '%s', args: '%s'""" % (options, args))
 
     exit(process())

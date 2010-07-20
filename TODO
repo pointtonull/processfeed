@@ -1,0 +1,10 @@
+  1.First release
+      1.document!
+          1.translate to english
+          2.explain all features
+      2.add options processing
+      3.add command edition feature
+      4.add stdin edition feature
+      5.add section especific logs
+  2.Second release
+      1.add configuration graphical editor

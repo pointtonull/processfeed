@@ -21,7 +21,7 @@ class Verbose:
 
     def __call__(self, *args):
         if self.verbosity:
-            message = " ".join((str(e) for e in args))
+            message = " ".join((unicode(e) for e in args))
             sys.stderr.write("%s%s%s\n" % ("  " * self.get_depth(), self.prefix,
                 message))
 
@@ -109,6 +109,7 @@ def run(command, stdin=""):
 
 
 def process_section(section):
+    info("Processing %s" % section)
     items = defaultdict(lambda: u"None")
     for key, value in config.items(section, True):
         items[key] = value.decode("utf-8")
@@ -143,11 +144,12 @@ def process_section(section):
 
                 info("Command code: %s" % items["command"])
                 command = unicode(eval(items["command"], safe_globals))
-                info("Command text: %s" % command.encode("UTF-8"))
+                info("Command text: " + command.encode("ascii", "replace"))
 
-                info("Stdin code: %s" % items["stdin"])
+                info("Stdin code: %s" % items["stdin"].encode("ascii",
+                    "replace"))
                 stdin = unicode(eval(items["stdin"], safe_globals))
-                info("Stdin text: %s" % stdin.encode("UTF-8"))
+                info("Stdin text: %s" % stdin.encode("ascii", "replace"))
 
                 exitcode = run(command, stdin)
                 write("%s #%s" % (idstring, entry["title"]), LOGFILE)
@@ -183,7 +185,9 @@ def get_options():
     optparser.add_option("-s", "--section", help=("Process only the given "
         "section"), action="store", dest="section")
     optparser.add_option("-c", "--config", help=("Uses the given conf file "
-        "inteast the default"), action="store", dest="conffile")
+        "inteast of the default"), action="store", dest="conffile")
+    optparser.add_option("-l", "--log", help=("Uses the given log file "
+        "inteast of the default"), action="store", dest="logfile")
     optparser.add_option("-v", "--verbose", action="count", dest="verbose",
         help="Increment verbosity")
     optparser.add_option("-q", "--quiet", action="count", dest="quiet",
@@ -194,7 +198,7 @@ def get_options():
 
     # Define the default options
     optparser.set_defaults(verbose=0, quiet=0, variables={},
-        conffile=CONFIGFILE)
+        conffile=CONFIGFILE, )
 
     # Process the options
     return optparser.parse_args()
@@ -209,7 +213,6 @@ def process():
     debug("Sections: %s" % sections)
 
     for section in sections:
-        info("Processing %s" % section)
         process_section(section)
 
 
@@ -217,7 +220,6 @@ def process():
 if __name__ == "__main__":
     # == Reading the options of the execution ==
     options, args = get_options()
-
 
     error = Verbose(options.verbose - options.quiet + 1, "E: ")
     info = Verbose(options.verbose - options.quiet - 0)

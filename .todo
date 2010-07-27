@@ -14,13 +14,13 @@
         <note priority="medium" time="1279588318">
             add options processing
         </note>
-        <note priority="medium" time="1279588335">
+        <note priority="medium" time="1279588335" done="1279658565">
             add command edition feature
         </note>
-        <note priority="medium" time="1279588345">
+        <note priority="medium" time="1279588345" done="1279658573">
             add stdin edition feature
         </note>
-        <note priority="medium" time="1279588365">
+        <note priority="medium" time="1279588365" done="1279658575">
             add section especific logs
         </note>
     </note>

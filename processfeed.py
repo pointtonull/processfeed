@@ -67,8 +67,9 @@ def write(text, destination):
 
 def read(filename):
     try:
-        lines = [line.split("#")[0].strip()
-            for line in open(filename).readlines()]
+        file = open(filename)
+        lines = [unicode(line.split("#")[0].strip(), "latin-1")
+            for line in file.readlines()]
     except IOError:
         warning("%s does not exist" % filename)
         lines = []
@@ -130,7 +131,7 @@ def process_section(section):
 
     for entry in feed["entries"][::-1]:
         process = False
-        idstring = get_id(section, entry)
+        idstring = unicode(get_id(section, entry))
 
         if idstring in history:
             debug("%s in history" % idstring)

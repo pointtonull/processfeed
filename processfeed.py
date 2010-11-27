@@ -58,6 +58,7 @@ class Verbose:
             return max(minn - 3, 0) #4 == len(main, Verbose, get_depth)
 
 
+
 def write(text, destination):
     debug("""Writing "%s" to %s""" % (text, destination))
     f = open(destination, "a")
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     options, args = get_options()
 
     error = Verbose(options.verbose - options.quiet + 1, "E: ")
-    info = Verbose(options.verbose - options.quiet - 0)
+    info = Verbose(options.verbose - options.quiet + 0)
     warning = Verbose(options.verbose - options.quiet - 1, "W: ")
     debug = Verbose(options.verbose - options.quiet - 2, "D: ")
 

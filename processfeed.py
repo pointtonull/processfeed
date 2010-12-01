@@ -69,7 +69,7 @@ def write(text, destination):
 def read(filename):
     try:
         file = open(filename)
-        lines = [unicode(line.split("#")[0].strip(), "latin-1")
+        lines = [unicode(line.split(" #")[0].strip(), "latin-1")
             for line in file.readlines()]
     except IOError:
         warning("%s does not exist" % filename)
@@ -162,6 +162,7 @@ def process_section(section):
                 write("%s #%s (OMITED)" % (idstring, entry["title"]),
                     LOGFILE)
 
+
 def get_options():
     def define_variable(option, opt_str, value, parser):
         """Handle the -d/--define option and populate the variables dict"""
@@ -204,7 +205,6 @@ def get_options():
 
     # Process the options
     return optparser.parse_args()
-    
 
 
 def process():
@@ -216,7 +216,6 @@ def process():
 
     for section in sections:
         process_section(section)
-
 
 
 if __name__ == "__main__":

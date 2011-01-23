@@ -128,7 +128,7 @@ def process_section(section):
         error("%s %s" % (items["feed"], feed["bozo_exception"]))
         return
     else:
-        info("Readed %d entries" % len(feed["entries"]))
+        info("  Readed %d entries" % len(feed["entries"]))
 
     for entry in feed["entries"][::-1]:
         process = False
@@ -137,28 +137,28 @@ def process_section(section):
         if idstring in history:
             debug("%s in history" % idstring)
         else:
-            info("%s:" % idstring)
+            info("  %s:" % idstring)
             safe_globals = {"re": re, "feed": feed, "entry": entry}
             enabled = eval(items["enabled"], safe_globals)
 
             if enabled:
-                info("Enabled: %s" % enabled)
+                info("  Enabled: %s" % enabled)
 
-                info("Command code: %s" % items["command"])
+                info("  Command code: %s" % items["command"])
                 command = unicode(eval(items["command"], safe_globals))
-                info("Command text: " + command.encode("ascii", "replace"))
+                info("  Command text: " + command.encode("ascii", "replace"))
 
-                info("Stdin code: %s" % items["stdin"].encode("ascii",
+                info("  Stdin code: %s" % items["stdin"].encode("ascii",
                     "replace"))
                 stdin = unicode(eval(items["stdin"], safe_globals))
-                info("Stdin text: %s" % stdin.encode("ascii", "replace"))
+                info("  Stdin text: %s" % stdin.encode("ascii", "replace"))
 
                 exitcode = run(command, stdin)
                 write("%s #%s" % (idstring, entry["title"]), LOGFILE)
                 return exitcode
 
             else:
-                info("Not enabled: %s" % enabled)
+                info("  Not enabled: %s" % enabled)
                 write("%s #%s (OMITED)" % (idstring, entry["title"]),
                     LOGFILE)
 

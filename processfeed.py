@@ -229,12 +229,9 @@ if __name__ == "__main__":
 
     debug("""Options: '%s', args: '%s'""" % (options, args))
 
-
-    # Define the defaults value
-    config = SafeConfigParser()
-
     # Read the values from the file
-    config.read(CONFIGFILE)
+    config = SafeConfigParser()
+    config.read(options.conffile)
 
     # Read the history log
     history = read(LOGFILE)

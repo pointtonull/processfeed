@@ -179,9 +179,10 @@ class Processfeed(object):
             if name.startswith("assert"):
                 if not safe_locals[name]:
                     info("Ignored because assert is false.")
+                    result = False
                     break
 
-        write("%s #%s" % (idstring, entry["title"]), LOG_FILE)
+        write("%s #(%s) %s" % (idstring, result, entry["title"]), LOG_FILE)
         return result
 
 

@@ -1,4 +1,4 @@
-.. figure:: http://arnet.no-ip.org/blog/testing.png
+.. figure:: https://github.com/pointtonull/processfeed/raw/master/processfeed.png
    :align: right
 
 Description

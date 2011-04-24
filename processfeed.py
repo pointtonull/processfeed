@@ -65,7 +65,7 @@ def get_depth():
         maxn *= 2
 
     middle = (minn + maxn) / 2
-  
+
     while minn < middle:
         if exist_frame(middle):
             minn = middle
@@ -73,8 +73,8 @@ def get_depth():
             maxn = middle
 
         middle = (minn + maxn) / 2
-  
-    return max(minn - 2, 0) #4 == len(main, get_depth)
+
+    return max(minn - 3, 0) #3 == len(main, Processfeed, get_depth)
 
 
 def ident(func, identation="  "):
@@ -111,8 +111,8 @@ class Processfeed(object):
                 debug(self.actions[section])
 
         self.history = read(LOG_FILE)
-    
-    
+
+
     def get_entry_id(self, action, entry):
         for key in ("id", "link"):
             if key in entry:
@@ -148,7 +148,7 @@ class Processfeed(object):
                 debug("%s in history" % idstring)
             else:
                 new_entries.append(entry)
-            
+
         return new_entries
 
 
@@ -258,22 +258,16 @@ if __name__ == "__main__":
     # == Reading the options of the execution ==
     options, args = get_options()
 
-    format = "%(asctime)s - %(message)s"
-    logging.basicConfig(format=format, level=0)
-#    logging.basicConfig(format=format, filename=LOG_FILE, level=0)
-    logger = logging.getLogger()
-    logger.handlers[0].setLevel(VERBOSE)
-
     VERBOSE = (options.quiet - options.verbose) * 10 + 30
-    stderr = logging.StreamHandler()
-    stderr.setLevel(VERBOSE)
-    logger.addHandler(stderr)
+    format = "%(message)s"
+    logging.basicConfig(format=format, level=VERBOSE)
+    logger = logging.getLogger()
 
-    debug = ident(logger.debug)
-    moreinfo = ident(logger.info)
+    debug = ident(logger.debug) # For developers
+    moreinfo = ident(logger.info) # Plus info
     info = ident(logger.warning) # Default
-    warning = ident(logger.error)
-    error = ident(logger.critical)
+    warning = ident(logger.error) # Non critical errors
+    error = ident(logger.critical) # Critical (will break)
 
     debug("Verbose level: %s" % VERBOSE)
     debug("""Options: '%s', args: '%s'""" % (options, args))

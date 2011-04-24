@@ -180,7 +180,6 @@ class Processfeed(object):
                 self.actions[section]["_name"] = section[7:]
                 for key, value in config.items(section, True):
                     self.actions[section][key] = value
-                DEBUG(self.actions[section])
             else:
                 MOREINFO("""Section "%s" is ignored""" % section)
 
@@ -225,7 +224,6 @@ class Processfeed(object):
         Run .process_action with each and every one of actions
         """
         for action in self.actions.itervalues():
-            DEBUG("Processfeed::process_all_actions::%s" % action)
             self.process_action(action)
 
 
@@ -249,7 +247,6 @@ def get_options():
     optparser.add_option("-q", "--quiet", action="count", dest="quiet",
         help="Decrement verbosity")
 
-    # Define the default options
     # Define the default options
     optparser.set_defaults(verbose=0, quiet=0, logfile=LOG_FILE,
         conffile="")
